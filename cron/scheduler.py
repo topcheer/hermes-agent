@@ -235,6 +235,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         "feishu": Platform.FEISHU,
         "wecom": Platform.WECOM,
         "weixin": Platform.WEIXIN,
+        "qq": Platform.QQ,
         "email": Platform.EMAIL,
         "sms": Platform.SMS,
         "bluebubbles": Platform.BLUEBUBBLES,
@@ -769,7 +770,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             _cron_pool.shutdown(wait=False, cancel_futures=True)
             raise
         finally:
-            _cron_pool.shutdown(wait=False, cancel_futures=True)
+            _cron_pool.shutdown(wait=False)
 
         if _inactivity_timeout:
             # Build diagnostic summary from the agent's activity tracker.

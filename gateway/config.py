@@ -65,6 +65,7 @@ class Platform(Enum):
     WECOM = "wecom"
     WEIXIN = "weixin"
     BLUEBUBBLES = "bluebubbles"
+    QQ = "qq"
 
 
 @dataclass
@@ -296,6 +297,9 @@ class GatewayConfig:
                 connected.append(platform)
             # BlueBubbles uses extra dict for local server config
             elif platform == Platform.BLUEBUBBLES and config.extra.get("server_url") and config.extra.get("password"):
+                connected.append(platform)
+            # QQ uses extra dict for WebSocket URL
+            elif platform == Platform.QQ and config.extra.get("app_id") and config.extra.get("client_secret"):
                 connected.append(platform)
         return connected
     
@@ -642,8 +646,6 @@ def load_gateway_config() -> GatewayConfig:
                     os.environ["MATRIX_FREE_RESPONSE_ROOMS"] = str(frc)
                 if "auto_thread" in matrix_cfg and not os.getenv("MATRIX_AUTO_THREAD"):
                     os.environ["MATRIX_AUTO_THREAD"] = str(matrix_cfg["auto_thread"]).lower()
-                if "dm_mention_threads" in matrix_cfg and not os.getenv("MATRIX_DM_MENTION_THREADS"):
-                    os.environ["MATRIX_DM_MENTION_THREADS"] = str(matrix_cfg["dm_mention_threads"]).lower()
 
     except Exception as e:
         logger.warning(
@@ -1023,6 +1025,32 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
                 platform=Platform.WEIXIN,
                 chat_id=weixin_home,
                 name=os.getenv("WEIXIN_HOME_CHANNEL_NAME", "Home"),
+            )
+
+    # QQ (Official Bot API v2)
+    qq_app_id = os.getenv("QQ_APP_ID")
+    qq_client_secret = os.getenv("QQ_CLIENT_SECRET")
+    if qq_app_id or qq_client_secret:
+        if Platform.QQ not in config.platforms:
+            config.platforms[Platform.QQ] = PlatformConfig()
+        config.platforms[Platform.QQ].enabled = True
+        extra = config.platforms[Platform.QQ].extra
+        if qq_app_id:
+            extra["app_id"] = qq_app_id
+        if qq_client_secret:
+            extra["client_secret"] = qq_client_secret
+        qq_allowed_users = os.getenv("QQ_ALLOWED_USERS", "").strip()
+        if qq_allowed_users:
+            extra["allow_from"] = qq_allowed_users
+        qq_group_allowed = os.getenv("QQ_GROUP_ALLOWED_USERS", "").strip()
+        if qq_group_allowed:
+            extra["group_allow_from"] = qq_group_allowed
+        qq_home = os.getenv("QQ_HOME_CHANNEL", "").strip()
+        if qq_home:
+            config.platforms[Platform.QQ].home_channel = HomeChannel(
+                platform=Platform.QQ,
+                chat_id=qq_home,
+                name=os.getenv("QQ_HOME_CHANNEL_NAME", "Home"),
             )
 
     # BlueBubbles (iMessage)

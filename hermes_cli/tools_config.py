@@ -134,6 +134,7 @@ PLATFORMS = {
     "feishu": {"label": "🪽 Feishu", "default_toolset": "hermes-feishu"},
     "wecom": {"label": "💬 WeCom", "default_toolset": "hermes-wecom"},
     "weixin": {"label": "💬 Weixin", "default_toolset": "hermes-weixin"},
+    "qq": {"label": "🐧 QQ", "default_toolset": "hermes-qq"},
     "api_server": {"label": "🌐 API Server", "default_toolset": "hermes-api-server"},
     "mattermost": {"label": "💬 Mattermost", "default_toolset": "hermes-mattermost"},
     "webhook": {"label": "🔗 Webhook", "default_toolset": "hermes-webhook"},
@@ -449,6 +450,8 @@ def _get_enabled_platforms() -> List[str]:
         enabled.append("slack")
     if get_env_value("WHATSAPP_ENABLED"):
         enabled.append("whatsapp")
+    if get_env_value("QQ_APP_ID"):
+        enabled.append("qq")
     return enabled
 
 
