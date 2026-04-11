@@ -298,7 +298,7 @@ class GatewayConfig:
             # BlueBubbles uses extra dict for local server config
             elif platform == Platform.BLUEBUBBLES and config.extra.get("server_url") and config.extra.get("password"):
                 connected.append(platform)
-            # QQ uses extra dict for WebSocket URL
+            # QQ uses app credentials; the adapter fetches the gateway URL itself
             elif platform == Platform.QQ and config.extra.get("app_id") and config.extra.get("client_secret"):
                 connected.append(platform)
         return connected
@@ -646,6 +646,8 @@ def load_gateway_config() -> GatewayConfig:
                     os.environ["MATRIX_FREE_RESPONSE_ROOMS"] = str(frc)
                 if "auto_thread" in matrix_cfg and not os.getenv("MATRIX_AUTO_THREAD"):
                     os.environ["MATRIX_AUTO_THREAD"] = str(matrix_cfg["auto_thread"]).lower()
+                if "dm_mention_threads" in matrix_cfg and not os.getenv("MATRIX_DM_MENTION_THREADS"):
+                    os.environ["MATRIX_DM_MENTION_THREADS"] = str(matrix_cfg["dm_mention_threads"]).lower()
 
     except Exception as e:
         logger.warning(
@@ -1027,6 +1029,29 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
                 name=os.getenv("WEIXIN_HOME_CHANNEL_NAME", "Home"),
             )
 
+    # BlueBubbles (iMessage)
+    bluebubbles_server_url = os.getenv("BLUEBUBBLES_SERVER_URL")
+    bluebubbles_password = os.getenv("BLUEBUBBLES_PASSWORD")
+    if bluebubbles_server_url and bluebubbles_password:
+        if Platform.BLUEBUBBLES not in config.platforms:
+            config.platforms[Platform.BLUEBUBBLES] = PlatformConfig()
+        config.platforms[Platform.BLUEBUBBLES].enabled = True
+        config.platforms[Platform.BLUEBUBBLES].extra.update({
+            "server_url": bluebubbles_server_url.rstrip("/"),
+            "password": bluebubbles_password,
+            "webhook_host": os.getenv("BLUEBUBBLES_WEBHOOK_HOST", "127.0.0.1"),
+            "webhook_port": int(os.getenv("BLUEBUBBLES_WEBHOOK_PORT", "8645")),
+            "webhook_path": os.getenv("BLUEBUBBLES_WEBHOOK_PATH", "/bluebubbles-webhook"),
+            "send_read_receipts": os.getenv("BLUEBUBBLES_SEND_READ_RECEIPTS", "true").lower() in ("true", "1", "yes"),
+        })
+    bluebubbles_home = os.getenv("BLUEBUBBLES_HOME_CHANNEL")
+    if bluebubbles_home and Platform.BLUEBUBBLES in config.platforms:
+        config.platforms[Platform.BLUEBUBBLES].home_channel = HomeChannel(
+            platform=Platform.BLUEBUBBLES,
+            chat_id=bluebubbles_home,
+            name=os.getenv("BLUEBUBBLES_HOME_CHANNEL_NAME", "Home"),
+        )
+
     # QQ (Official Bot API v2)
     qq_app_id = os.getenv("QQ_APP_ID")
     qq_client_secret = os.getenv("QQ_CLIENT_SECRET")
@@ -1052,29 +1077,6 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
                 chat_id=qq_home,
                 name=os.getenv("QQ_HOME_CHANNEL_NAME", "Home"),
             )
-
-    # BlueBubbles (iMessage)
-    bluebubbles_server_url = os.getenv("BLUEBUBBLES_SERVER_URL")
-    bluebubbles_password = os.getenv("BLUEBUBBLES_PASSWORD")
-    if bluebubbles_server_url and bluebubbles_password:
-        if Platform.BLUEBUBBLES not in config.platforms:
-            config.platforms[Platform.BLUEBUBBLES] = PlatformConfig()
-        config.platforms[Platform.BLUEBUBBLES].enabled = True
-        config.platforms[Platform.BLUEBUBBLES].extra.update({
-            "server_url": bluebubbles_server_url.rstrip("/"),
-            "password": bluebubbles_password,
-            "webhook_host": os.getenv("BLUEBUBBLES_WEBHOOK_HOST", "127.0.0.1"),
-            "webhook_port": int(os.getenv("BLUEBUBBLES_WEBHOOK_PORT", "8645")),
-            "webhook_path": os.getenv("BLUEBUBBLES_WEBHOOK_PATH", "/bluebubbles-webhook"),
-            "send_read_receipts": os.getenv("BLUEBUBBLES_SEND_READ_RECEIPTS", "true").lower() in ("true", "1", "yes"),
-        })
-    bluebubbles_home = os.getenv("BLUEBUBBLES_HOME_CHANNEL")
-    if bluebubbles_home and Platform.BLUEBUBBLES in config.platforms:
-        config.platforms[Platform.BLUEBUBBLES].home_channel = HomeChannel(
-            platform=Platform.BLUEBUBBLES,
-            chat_id=bluebubbles_home,
-            name=os.getenv("BLUEBUBBLES_HOME_CHANNEL_NAME", "Home"),
-        )
 
     # Session settings
     idle_minutes = os.getenv("SESSION_IDLE_MINUTES")

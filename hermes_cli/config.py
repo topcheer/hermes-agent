@@ -42,10 +42,10 @@ _EXTRA_ENV_KEYS = frozenset({
     "WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN", "WEIXIN_BASE_URL", "WEIXIN_CDN_BASE_URL",
     "WEIXIN_HOME_CHANNEL", "WEIXIN_HOME_CHANNEL_NAME", "WEIXIN_DM_POLICY", "WEIXIN_GROUP_POLICY",
     "WEIXIN_ALLOWED_USERS", "WEIXIN_GROUP_ALLOWED_USERS", "WEIXIN_ALLOW_ALL_USERS",
+    "BLUEBUBBLES_SERVER_URL", "BLUEBUBBLES_PASSWORD",
     "QQ_APP_ID", "QQ_CLIENT_SECRET",
     "QQ_STT_API_KEY", "QQ_STT_BASE_URL", "QQ_STT_MODEL",
-    "QQ_ALLOWED_USERS", "QQ_GROUP_ALLOWED_USERS", "QQ_HOME_CHANNEL",
-    "BLUEBUBBLES_SERVER_URL", "BLUEBUBBLES_PASSWORD",
+    "QQ_ALLOWED_USERS", "QQ_GROUP_ALLOWED_USERS", "QQ_ALLOW_ALL_USERS", "QQ_HOME_CHANNEL",
     "TERMINAL_ENV", "TERMINAL_SSH_KEY", "TERMINAL_SSH_PORT",
     "WHATSAPP_MODE", "WHATSAPP_ENABLED",
     "MATTERMOST_HOME_CHANNEL", "MATTERMOST_REPLY_MODE",
@@ -272,6 +272,11 @@ DEFAULT_CONFIG = {
         # tools or receiving API responses.  Only fires when the agent has
         # been completely idle for this duration.  0 = unlimited.
         "gateway_timeout": 1800,
+        # Graceful drain timeout for gateway stop/restart (seconds).
+        # The gateway stops accepting new work, waits for running agents
+        # to finish, then interrupts any remaining runs after the timeout.
+        # 0 = no drain, interrupt immediately.
+        "restart_drain_timeout": 60,
         "service_tier": "",
         # Tool-use enforcement: injects system prompt guidance that tells the
         # model to actually call tools instead of describing intended actions.
@@ -507,6 +512,16 @@ DEFAULT_CONFIG = {
         "max_ms": 2500,
     },
     
+    # Context engine -- controls how the context window is managed when
+    # approaching the model's token limit.
+    # "compressor" = built-in lossy summarization (default).
+    # Set to a plugin name to activate an alternative engine (e.g. "lcm"
+    # for Lossless Context Management).  The engine must be installed as
+    # a plugin in plugins/context_engine/<name>/ or ~/.hermes/plugins/.
+    "context": {
+        "engine": "compressor",
+    },
+
     # Persistent memory -- bounded curated memory injected into system prompt
     "memory": {
         "memory_enabled": True,
@@ -531,6 +546,8 @@ DEFAULT_CONFIG = {
         "api_key": "",     # API key for delegation.base_url (falls back to OPENAI_API_KEY)
         "max_iterations": 50,  # per-subagent iteration cap (each subagent gets its own budget,
                                # independent of the parent's max_iterations)
+        "reasoning_effort": "",  # reasoning effort for subagents: "xhigh", "high", "medium",
+                                 # "low", "minimal", "none" (empty = inherit parent's level)
     },
 
     # Ephemeral prefill messages file — JSON list of {role, content} dicts
@@ -1212,8 +1229,8 @@ OPTIONAL_ENV_VARS = {
         "advanced": True,
     },
     "API_SERVER_KEY": {
-        "description": "Bearer token for API server authentication. If empty, all requests are allowed (local use only).",
-        "prompt": "API server auth key (optional)",
+        "description": "Bearer token for API server authentication. Required for non-loopback binding; server refuses to start without it. On loopback (127.0.0.1), all requests are allowed if empty.",
+        "prompt": "API server auth key (required for network access)",
         "url": None,
         "password": True,
         "category": "messaging",
@@ -1228,7 +1245,7 @@ OPTIONAL_ENV_VARS = {
         "advanced": True,
     },
     "API_SERVER_HOST": {
-        "description": "Host/bind address for the API server (default: 127.0.0.1). Use 0.0.0.0 for network access — requires API_SERVER_KEY for security.",
+        "description": "Host/bind address for the API server (default: 127.0.0.1). Use 0.0.0.0 for network access — server refuses to start without API_SERVER_KEY.",
         "prompt": "API server host",
         "url": None,
         "password": False,
@@ -1453,7 +1470,7 @@ _KNOWN_ROOT_KEYS = {
     "_config_version", "model", "providers", "fallback_model",
     "fallback_providers", "credential_pool_strategies", "toolsets",
     "agent", "terminal", "display", "compression", "delegation",
-    "auxiliary", "custom_providers", "memory", "gateway",
+    "auxiliary", "custom_providers", "context", "memory", "gateway",
 }
 
 # Valid fields inside a custom_providers list entry
@@ -2776,6 +2793,10 @@ def set_config_value(key: str, value: str):
         "terminal.timeout": "TERMINAL_TIMEOUT",
         "terminal.sandbox_dir": "TERMINAL_SANDBOX_DIR",
         "terminal.persistent_shell": "TERMINAL_PERSISTENT_SHELL",
+        "terminal.container_cpu": "TERMINAL_CONTAINER_CPU",
+        "terminal.container_memory": "TERMINAL_CONTAINER_MEMORY",
+        "terminal.container_disk": "TERMINAL_CONTAINER_DISK",
+        "terminal.container_persistent": "TERMINAL_CONTAINER_PERSISTENT",
     }
     if key in _config_to_env_sync:
         save_env_value(_config_to_env_sync[key], str(value))

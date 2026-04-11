@@ -359,14 +359,14 @@ TOOLSETS = {
         "includes": []
     },
 
-    "hermes-wecom": {
-        "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
+    "hermes-qq": {
+        "description": "QQ bot toolset - Official QQ Bot API v2 platform (full access)",
         "tools": _HERMES_CORE_TOOLS,
         "includes": []
     },
 
-    "hermes-qq": {
-        "description": "QQ bot toolset - Official QQ Bot API v2 platform (full access)",
+    "hermes-wecom": {
+        "description": "WeCom bot toolset - enterprise WeChat messaging (full access)",
         "tools": _HERMES_CORE_TOOLS,
         "includes": []
     },

@@ -175,3 +175,131 @@ class TestDetectMessageType:
 
     def test_video(self):
         assert QQAdapter._detect_message_type(["/tmp/vid.mp4"], ["video/mp4"]) == MessageType.VIDEO
+
+
+# ── Additional tests for WebSocket keep-alive and message processing ──
+
+
+class TestQQCloseError:
+    """QQCloseError carries close code and reason for reconnect logic."""
+
+    def test_attributes(self):
+        from gateway.platforms.qq import QQCloseError
+        err = QQCloseError(4004, "not authenticated")
+        assert err.code == 4004
+        assert err.reason == "not authenticated"
+        assert "4004" in str(err)
+        assert "not authenticated" in str(err)
+
+    def test_code_none(self):
+        from gateway.platforms.qq import QQCloseError
+        err = QQCloseError(None, "")
+        assert err.code is None
+        assert err.reason == ""
+
+    def test_code_string_conversion(self):
+        from gateway.platforms.qq import QQCloseError
+        err = QQCloseError("4008", "rate limited")
+        assert err.code == 4008
+
+
+class TestDispatchPayload:
+    """_dispatch_payload routes op codes correctly."""
+
+    def test_unknown_op_ignored(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        adapter._dispatch_payload({"op": 99, "d": None, "s": None, "t": None})
+
+    def test_op10_updates_heartbeat_interval(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        assert adapter._heartbeat_interval == 30.0
+        adapter._dispatch_payload({
+            "op": 10,
+            "d": {"heartbeat_interval": 50000},
+        })
+        assert adapter._heartbeat_interval == 40.0  # 50000 / 1000 * 0.8
+
+    def test_op11_heartbeat_ack_no_error(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        adapter._dispatch_payload({"op": 11})
+
+    def test_seq_tracking(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        adapter._dispatch_payload({"op": 0, "s": 42, "t": "READY", "d": {}})
+        assert adapter._last_seq == 42
+        adapter._dispatch_payload({"op": 0, "s": 30, "t": "READY", "d": {}})
+        assert adapter._last_seq == 42
+        adapter._dispatch_payload({"op": 0, "s": 50, "t": "READY", "d": {}})
+        assert adapter._last_seq == 50
+
+
+class TestReadyHandling:
+    """READY dispatch stores session_id."""
+
+    def test_ready_stores_session(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        adapter._dispatch_payload({
+            "op": 0,
+            "s": 1,
+            "t": "READY",
+            "d": {"session_id": "test-session-123", "user": {"id": "bot-1"}},
+        })
+        assert adapter._session_id == "test-session-123"
+
+    def test_resumed_preserves_session(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        adapter._session_id = "existing"
+        adapter._dispatch_payload({"op": 0, "s": 1, "t": "RESUMED", "d": {}})
+        assert adapter._session_id == "existing"
+
+
+class TestParseJson:
+    """_parse_json handles malformed JSON gracefully."""
+
+    def test_valid_json(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        result = adapter._parse_json('{"op": 10}')
+        assert result == {"op": 10}
+
+    def test_invalid_json_returns_none(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        result = adapter._parse_json("not json")
+        assert result is None
+
+    def test_none_input_returns_none(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        assert adapter._parse_json(None) is None
+
+
+class TestBuildTextBody:
+    """_build_text_body produces correct message body."""
+
+    def test_plain_text(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        result = adapter._build_text_body("hello")
+        assert "markdown" in result
+        assert result["markdown"]["content"] == "hello"
+
+    def test_truncation(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        long_text = "x" * 5000
+        result = adapter._build_text_body(long_text)
+        text = result["markdown"]["content"]
+        assert len(text) <= 4000
+
+    def test_empty_string(self):
+        from gateway.platforms.qq import QQAdapter
+        adapter = QQAdapter(_make_config())
+        result = adapter._build_text_body("")
+        assert result["markdown"]["content"] == ""

@@ -1830,70 +1830,6 @@ def _clean_discord_user_ids(raw: str) -> list:
     return cleaned
 
 
-def _setup_qq():
-    """Configure QQ Bot credentials and STT."""
-    print_header("QQ Bot")
-    existing_id = get_env_value("QQ_APP_ID")
-    existing_secret = get_env_value("QQ_CLIENT_SECRET")
-    if existing_id and existing_secret:
-        print_info("QQ Bot: already configured")
-        if not prompt_yes_no("Reconfigure QQ Bot?", False):
-            return
-
-    print_info("Steps to create a QQ Bot:")
-    print_info("   1. Go to https://q.qq.com/ and scan QR code to log in")
-    print_info("   2. Create a new bot and copy AppID + AppSecret")
-    print_info("   3. Enable required permissions (C2C message, Group @-message)")
-    print_info("   4. The bot connects via the official WebSocket Gateway — no public endpoint needed")
-    print()
-    app_id = prompt("QQ App ID")
-    if not app_id:
-        return
-    save_env_value("QQ_APP_ID", app_id)
-    client_secret = prompt("QQ App Secret", password=True)
-    if not client_secret:
-        return
-    save_env_value("QQ_CLIENT_SECRET", client_secret)
-    print_success("QQ Bot credentials saved")
-
-    print()
-    print_info("🔒 Security: Restrict who can use your bot")
-    print_info("   Leave empty to deny everyone except paired users.")
-    allowed_users = prompt(
-        "Allowed user openIDs (comma-separated, leave empty to deny everyone)"
-    )
-    if allowed_users:
-        save_env_value("QQ_ALLOWED_USERS", allowed_users.replace(" ", ""))
-        print_success("QQ allowlist configured")
-    else:
-        print_warning("⚠️  No QQ allowlist set - unpaired users will be denied by default.")
-
-    # STT configuration
-    print()
-    print_info("🎤 Voice messages (STT)")
-    print_info("   QQ provides built-in speech recognition (asr_refer_text).")
-    print_info("   This is used automatically — no extra config needed for basic voice support.")
-    print_info("   You can optionally configure a custom STT provider for better accuracy:")
-    stt_choice = prompt_choice(
-        "   STT provider:",
-        ["QQ built-in ASR (free, default)", "Custom STT provider"],
-        default=0,
-    )
-    if stt_choice == 1:
-        stt_api_key = prompt("STT API Key", password=True)
-        if stt_api_key:
-            save_env_value("QQ_STT_API_KEY", stt_api_key)
-            stt_base_url = prompt("STT Base URL (default: https://open.bigmodel.cn/api/coding/paas/v4)")
-            if stt_base_url:
-                save_env_value("QQ_STT_BASE_URL", stt_base_url)
-            stt_model = prompt("STT Model (default: glm-asr)")
-            if stt_model:
-                save_env_value("QQ_STT_MODEL", stt_model)
-            print_success("Custom STT configured")
-    else:
-        print_success("Using QQ built-in ASR for voice messages")
-
-
 def _setup_slack():
     """Configure Slack bot credentials."""
     print_header("Slack")
@@ -1989,9 +1925,9 @@ def _setup_matrix():
             save_env_value("MATRIX_ENCRYPTION", "true")
             print_success("E2EE enabled")
 
-        matrix_pkg = "matrix-nio[e2e]" if want_e2ee else "matrix-nio"
+        matrix_pkg = "mautrix[encryption]" if want_e2ee else "mautrix"
         try:
-            __import__("nio")
+            __import__("mautrix")
         except ImportError:
             print_info(f"Installing {matrix_pkg}...")
             import subprocess
@@ -2098,6 +2034,29 @@ def _setup_weixin():
     """Configure Weixin (personal WeChat) via iLink Bot API QR login."""
     from hermes_cli.gateway import _setup_weixin as _gateway_setup_weixin
     _gateway_setup_weixin()
+
+
+def _setup_qq():
+    """Configure QQ Bot credentials and STT."""
+    print_header("QQ Bot")
+    existing_id = get_env_value("QQ_APP_ID")
+    existing_secret = get_env_value("QQ_CLIENT_SECRET")
+    if existing_id and existing_secret:
+        print_info("QQ Bot: already configured")
+        if not prompt_yes_no("Reconfigure QQ Bot?", False):
+            return
+    print_info("Steps to create a QQ Bot:")
+    print_info("   1. Go to https://q.qq.com/ and scan QR code to log in")
+    print_info("   2. Create a new bot and copy the App ID and App Secret")
+    print_info("   3. Enable C2C message and Group @-message permissions")
+    app_id = prompt("QQ App ID")
+    app_secret = prompt_password("QQ App Secret")
+    set_env_value("QQ_APP_ID", app_id)
+    set_env_value("QQ_CLIENT_SECRET", app_secret)
+    allowed = prompt("Allowed user openIDs (comma-separated, or leave empty)")
+    if allowed:
+        set_env_value("QQ_ALLOWED_USERS", allowed)
+    print_success("QQ Bot configured")
 
 
 def _setup_bluebubbles():
@@ -2217,11 +2176,11 @@ _GATEWAY_PLATFORMS = [
     ("Discord", "DISCORD_BOT_TOKEN", _setup_discord),
     ("Slack", "SLACK_BOT_TOKEN", _setup_slack),
     ("Matrix", "MATRIX_ACCESS_TOKEN", _setup_matrix),
-    ("QQ", "QQ_APP_ID", _setup_qq),
     ("Mattermost", "MATTERMOST_TOKEN", _setup_mattermost),
     ("WhatsApp", "WHATSAPP_ENABLED", _setup_whatsapp),
     ("Weixin (WeChat)", "WEIXIN_ACCOUNT_ID", _setup_weixin),
     ("BlueBubbles (iMessage)", "BLUEBUBBLES_SERVER_URL", _setup_bluebubbles),
+    ("QQ Bot", "QQ_APP_ID", _setup_qq),
     ("Webhooks (GitHub, GitLab, etc.)", "WEBHOOK_ENABLED", _setup_webhooks),
 ]
 
@@ -2264,9 +2223,9 @@ def setup_gateway(config: dict):
         or get_env_value("MATTERMOST_TOKEN")
         or get_env_value("MATRIX_ACCESS_TOKEN")
         or get_env_value("MATRIX_PASSWORD")
-        or get_env_value("QQ_APP_ID")
         or get_env_value("WHATSAPP_ENABLED")
         or get_env_value("BLUEBUBBLES_SERVER_URL")
+        or get_env_value("QQ_APP_ID")
         or get_env_value("WEBHOOK_ENABLED")
     )
     if any_messaging:
@@ -2289,7 +2248,7 @@ def setup_gateway(config: dict):
         if get_env_value("BLUEBUBBLES_SERVER_URL") and not get_env_value("BLUEBUBBLES_HOME_CHANNEL"):
             missing_home.append("BlueBubbles")
         if get_env_value("QQ_APP_ID") and not get_env_value("QQ_HOME_CHANNEL"):
-            missing_home.append("QQ")
+            missing_home.append("QQ Bot")
 
         if missing_home:
             print()
