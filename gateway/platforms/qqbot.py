@@ -71,7 +71,7 @@ from gateway.platforms.base import (
 logger = logging.getLogger(__name__)
 
 
-class QQCloseError(Exception):
+class QQBotCloseError(Exception):
     """Raised when QQ WebSocket closes with a specific code.
 
     Carries the close code and reason for proper handling in the reconnect loop.
@@ -116,7 +116,7 @@ MEDIA_TYPE_VOICE = 3
 MEDIA_TYPE_FILE = 4
 
 
-def check_qq_requirements() -> bool:
+def check_qqbot_requirements() -> bool:
     """Check if QQ runtime dependencies are available."""
     return AIOHTTP_AVAILABLE and HTTPX_AVAILABLE
 
@@ -133,10 +133,10 @@ def _coerce_list(value: Any) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
-# QQAdapter
+# QQBotAdapter
 # ---------------------------------------------------------------------------
 
-class QQAdapter(BasePlatformAdapter):
+class QQBotAdapter(BasePlatformAdapter):
     """QQ Bot adapter backed by the official QQ Bot WebSocket Gateway + REST API."""
 
     # QQ Bot API does not support editing sent messages.
@@ -152,7 +152,7 @@ class QQAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
 
     def __init__(self, config: PlatformConfig):
-        super().__init__(config, Platform.QQ)
+        super().__init__(config, Platform.QQBOT)
 
         extra = config.extra or {}
         self._app_id = str(extra.get("app_id") or os.getenv("QQ_APP_ID", "")).strip()
@@ -194,7 +194,7 @@ class QQAdapter(BasePlatformAdapter):
 
     @property
     def name(self) -> str:
-        return "QQ"
+        return "QQBot"
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -385,7 +385,7 @@ class QQAdapter(BasePlatformAdapter):
                 quick_disconnect_count = 0
             except asyncio.CancelledError:
                 return
-            except QQCloseError as exc:
+            except QQBotCloseError as exc:
                 if not self._running:
                     return
 
@@ -503,7 +503,7 @@ class QQAdapter(BasePlatformAdapter):
                 # aiohttp auto-replies with PONG
                 pass
             elif msg.type == aiohttp.WSMsgType.CLOSE:
-                raise QQCloseError(msg.data, msg.extra)
+                raise QQBotCloseError(msg.data, msg.extra)
             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                 raise RuntimeError("WebSocket closed")
 
@@ -658,7 +658,7 @@ class QQAdapter(BasePlatformAdapter):
         try:
             payload = json.loads(raw)
         except Exception:
-            logger.debug("[%s] Failed to parse JSON: %r", "QQ", raw)
+            logger.debug("[%s] Failed to parse JSON: %r", "QQBot", raw)
             return None
         return payload if isinstance(payload, dict) else None
 

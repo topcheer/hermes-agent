@@ -20,24 +20,24 @@ def _make_config(**extra):
 
 
 # ---------------------------------------------------------------------------
-# check_qq_requirements
+# check_qqbot_requirements
 # ---------------------------------------------------------------------------
 
 class TestQQRequirements:
     def test_returns_bool(self):
-        from gateway.platforms.qq import check_qq_requirements
-        result = check_qq_requirements()
+        from gateway.platforms.qqbot import check_qqbot_requirements
+        result = check_qqbot_requirements()
         assert isinstance(result, bool)
 
 
 # ---------------------------------------------------------------------------
-# QQAdapter.__init__
+# QQBotAdapter.__init__
 # ---------------------------------------------------------------------------
 
-class TestQQAdapterInit:
+class TestQQBotAdapterInit:
     def _make(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_basic_attributes(self):
         adapter = self._make(app_id="123", client_secret="sec")
@@ -93,7 +93,7 @@ class TestQQAdapterInit:
 
     def test_name_property(self):
         adapter = self._make(app_id="a", client_secret="b")
-        assert adapter.name == "QQ"
+        assert adapter.name == "QQBOT"
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ class TestQQAdapterInit:
 
 class TestCoerceList:
     def _fn(self, value):
-        from gateway.platforms.qq import _coerce_list
+        from gateway.platforms.qqbot import _coerce_list
         return _coerce_list(value)
 
     def test_none(self):
@@ -130,8 +130,8 @@ class TestCoerceList:
 
 class TestIsVoiceContentType:
     def _fn(self, content_type, filename):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter._is_voice_content_type(content_type, filename)
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter._is_voice_content_type(content_type, filename)
 
     def test_voice_content_type(self):
         assert self._fn("voice", "msg.silk") is True
@@ -155,8 +155,8 @@ class TestIsVoiceContentType:
 
 class TestStripAtMention:
     def _fn(self, content):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter._strip_at_mention(content)
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter._strip_at_mention(content)
 
     def test_removes_mention(self):
         result = self._fn("@BotUser hello there")
@@ -179,8 +179,8 @@ class TestStripAtMention:
 
 class TestDmAllowed:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_open_policy(self):
         adapter = self._make_adapter(app_id="a", client_secret="b", dm_policy="open")
@@ -209,8 +209,8 @@ class TestDmAllowed:
 
 class TestGroupAllowed:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_open_policy(self):
         adapter = self._make_adapter(app_id="a", client_secret="b", group_policy="open")
@@ -231,8 +231,8 @@ class TestGroupAllowed:
 
 class TestResolveSTTConfig:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_no_config(self):
         adapter = self._make_adapter(app_id="a", client_secret="b")
@@ -273,8 +273,8 @@ class TestResolveSTTConfig:
 
 class TestDetectMessageType:
     def _fn(self, media_urls, media_types):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter._detect_message_type(media_urls, media_types)
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter._detect_message_type(media_urls, media_types)
 
     def test_no_media(self):
         from gateway.platforms.base import MessageType
@@ -294,30 +294,30 @@ class TestDetectMessageType:
 
 
 # ---------------------------------------------------------------------------
-# QQCloseError
+# QQBotCloseError
 # ---------------------------------------------------------------------------
 
-class TestQQCloseError:
+class TestQQBotCloseError:
     def test_attributes(self):
-        from gateway.platforms.qq import QQCloseError
-        err = QQCloseError(4004, "bad token")
+        from gateway.platforms.qqbot import QQBotCloseError
+        err = QQBotCloseError(4004, "bad token")
         assert err.code == 4004
         assert err.reason == "bad token"
 
     def test_code_none(self):
-        from gateway.platforms.qq import QQCloseError
-        err = QQCloseError(None, "")
+        from gateway.platforms.qqbot import QQBotCloseError
+        err = QQBotCloseError(None, "")
         assert err.code is None
 
     def test_string_to_int(self):
-        from gateway.platforms.qq import QQCloseError
-        err = QQCloseError("4914", "banned")
+        from gateway.platforms.qqbot import QQBotCloseError
+        err = QQBotCloseError("4914", "banned")
         assert err.code == 4914
         assert err.reason == "banned"
 
     def test_message_format(self):
-        from gateway.platforms.qq import QQCloseError
-        err = QQCloseError(4008, "rate limit")
+        from gateway.platforms.qqbot import QQBotCloseError
+        err = QQBotCloseError(4008, "rate limit")
         assert "4008" in str(err)
         assert "rate limit" in str(err)
 
@@ -328,8 +328,8 @@ class TestQQCloseError:
 
 class TestDispatchPayload:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        adapter = QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        adapter = QQBotAdapter(_make_config(**extra))
         return adapter
 
     def test_unknown_op(self):
@@ -368,8 +368,8 @@ class TestDispatchPayload:
 
 class TestReadyHandling:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_ready_stores_session(self):
         adapter = self._make_adapter(app_id="a", client_secret="b")
@@ -398,8 +398,8 @@ class TestReadyHandling:
 
 class TestParseJson:
     def _fn(self, raw):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter._parse_json(raw)
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter._parse_json(raw)
 
     def test_valid_json(self):
         result = self._fn('{"op": 10, "d": {}}')
@@ -428,8 +428,8 @@ class TestParseJson:
 
 class TestBuildTextBody:
     def _make_adapter(self, **extra):
-        from gateway.platforms.qq import QQAdapter
-        return QQAdapter(_make_config(**extra))
+        from gateway.platforms.qqbot import QQBotAdapter
+        return QQBotAdapter(_make_config(**extra))
 
     def test_plain_text(self):
         adapter = self._make_adapter(app_id="a", client_secret="b", markdown_support=False)
